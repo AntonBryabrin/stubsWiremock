@@ -1,51 +1,21 @@
 package com.example.stubs_Wiremock;
 
-import org.junit.jupiter.api.*;
-import org.springframework.boot.test.context.SpringBootTest;
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+
 import static io.restassured.RestAssured.given;
 
 @SpringBootTest
-class StubsWiremockApplicationTests {
-
-	private static WireMockServer wireMockServer = new WireMockServer(WireMockConfiguration.options().port(5050));
-
-	@BeforeAll
-	public static  void setUpMockServer() {
-		wireMockServer.start();
-
-		WireMock.configureFor("localhost", 5050);
-		WireMock.stubFor(WireMock.get(WireMock.urlEqualTo("/api/users/2"))
-				.willReturn(WireMock.aResponse()
-						.withStatus(200)
-						.withBody("{\n" +
-								"    \"data\": {\n" +
-								"        \"id\": 2,\n" +
-								"        \"email\": \"janet.weaver@reqres.in\",\n" +
-								"        \"first_name\": \"Janet\",\n" +
-								"        \"last_name\": \"Weaver\",\n" +
-								"        \"avatar\": \"https://reqres.in/img/faces/2-image.jpg\"\n" +
-								"    },\n" +
-								"    \"support\": {\n" +
-								"        \"url\": \"https://reqres.in/#support-heading\",\n" +
-								"        \"text\": \"To keep ReqRes free, contributions towards server costs are appreciated!\"\n" +
-								"    }\n" +
-								"}")));
-
-	}
+class StubsWiremockApplicationTests extends BaseHooks{
 
 	@Test
-	void contextLoads() {
-		Response response = given()
+	void singleUser() {
+				Response response = given()
 				.contentType(ContentType.JSON)
 				.when()
-//				.get("https://reqres.in/api/users/2")
 				.get("http://localhost:5050/api/users/2")
 				.then()
 				.extract().response();
@@ -56,24 +26,58 @@ class StubsWiremockApplicationTests {
 		Assertions.assertEquals("Weaver", response.jsonPath().getString("data.last_name"));
 	}
 
+	@Test
+	void userNotFound() {
+		Response response = given()
+				.contentType(ContentType.JSON)
+				.when()
+				.get("http://localhost:5050/api/users?page=2")
+				.then()
+				.extract().response();
 
+		Assertions.assertEquals(404, response.statusCode());
+		System.out.println(response.getBody().prettyPrint());
 
+	}
 
+	@Test
+	void singleResource() {
+		Response response = given()
+				.contentType(ContentType.JSON)
+				.when()
+				.get("http://localhost:5050/api/unknown/2")
+				.then()
+				.extract().response();
 
+		Assertions.assertEquals(200, response.statusCode());
+		Assertions.assertEquals("fuchsia rose", response.jsonPath().getString("data.name"));
+		Assertions.assertEquals("#C74375", response.jsonPath().getString("data.color"));
+		System.out.println(response.getBody().prettyPrint());
 
+	}
 
+	@Test
+	void createUser() {
 
+		Response response = given()
+				.contentType(ContentType.JSON)
+				.when()
+				.body("{\n" +
+						"    \"name\": \"morpheus\",\n" +
+						"    \"job\": \"leader\"\n" +
+						"}")
+				.post("http://localhost:5050/api/users")
+				.then()
+				.extract().response();
 
-
-
-
-
-	@AfterAll
-		public static void tearDownMockServer() {
-			wireMockServer.stop();
-		}
+		Assertions.assertEquals(201, response.statusCode());
+		System.out.println(response.getBody().prettyPrint());
+		Assertions.assertEquals("morpheus", response.jsonPath().getString("name"));
+		Assertions.assertEquals("leader", response.jsonPath().getString("job"));
 
 
 	}
+
+}
 
 
